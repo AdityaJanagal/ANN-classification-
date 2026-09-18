@@ -1,26 +1,51 @@
+
 import tensorflow as tf
 import pickle
-import pandas as pd 
+import pandas as pd
 import numpy as np
 import streamlit as st
-from sklearn.preprocessing import StandardScaler,LabelEncoder,OneHotEncoder
-
-model = tf.keras.models.load_model('model.h5')
-
-with open('label_encoder_gender.pkl','rb') as file:
-    label_encoder_gender= pickle.load(file)
-    
-with open('One_hot_encoder_geo.pkl','rb') as file:
-    One_hot_encoder_geo= pickle.load(file)
-
-with open('scaler.pkl','rb') as file:
-    scaler= pickle.load(file)
 
 
-##Streamlit app
+# =========================
+# LOAD MODEL
+# =========================
 
-st.title("🏦 Customer Churn Prediction")
-st.write("Enter customer details to predict whether the customer is likely to churn.")
+model = tf.keras.models.load_model("RegressionModel.h5")
+
+
+# =========================
+# LOAD ENCODERS
+# =========================
+
+with open("Label_encoder.pkl", "rb") as file:
+    label_encoder_gender = pickle.load(file)
+
+with open("OneHot_Encoder.pkl", "rb") as file:
+    One_hot_encoder_geo = pickle.load(file)
+
+
+# =========================
+# LOAD SCALER
+# =========================
+
+with open("scaler.pkl", "rb") as file:
+    scaler = pickle.load(file)
+
+
+# =========================
+# STREAMLIT APP
+# =========================
+
+st.title("💰 Estimated Salary Prediction")
+
+st.write(
+    "Enter customer details to predict the estimated salary."
+)
+
+
+# =========================
+# USER INPUTS
+# =========================
 
 credit_score = st.number_input(
     "Credit Score",
@@ -29,15 +54,18 @@ credit_score = st.number_input(
     value=650
 )
 
+
 geography = st.selectbox(
     "Geography",
     ["France", "Germany", "Spain"]
 )
 
+
 gender = st.selectbox(
     "Gender",
     ["Male", "Female"]
 )
+
 
 age = st.number_input(
     "Age",
@@ -46,6 +74,7 @@ age = st.number_input(
     value=35
 )
 
+
 tenure = st.number_input(
     "Tenure",
     min_value=0,
@@ -53,11 +82,13 @@ tenure = st.number_input(
     value=5
 )
 
+
 balance = st.number_input(
     "Balance",
     min_value=0.0,
     value=50000.0
 )
+
 
 num_of_products = st.number_input(
     "Number of Products",
@@ -66,45 +97,79 @@ num_of_products = st.number_input(
     value=1
 )
 
+
 has_cr_card = st.selectbox(
     "Has Credit Card?",
     ["Yes", "No"]
 )
+
 
 is_active_member = st.selectbox(
     "Is Active Member?",
     ["Yes", "No"]
 )
 
-estimated_salary = st.number_input(
-    "Estimated Salary",
-    min_value=0.0,
-    value=50000.0
+is_exited = st.selectbox(
+    "Exited" , 
+    ['Yes','No']
 )
 
-if st.button("Predict Churn"):
+# =========================
+# PREDICTION
+# =========================
+
+if st.button("Predict Salary"):
 
     # Convert Yes/No to 1/0
-    has_cr_card_value = 1 if has_cr_card == "Yes" else 0
 
-    is_active_member_value = 1 if is_active_member == "Yes" else 0
+    has_cr_card_value = (
+        1 if has_cr_card == "Yes" else 0
+    )
+
+    is_active_member_value = (
+        1 if is_active_member == "Yes" else 0
+    )
+    is_exited = (
+        1 if is_exited == "Yes" else 0
+    )
 
 
-    # Create dataframe
+
+    # =========================
+    # CREATE DATAFRAME
+    # =========================
+
     input_data = {
+
         "CreditScore": credit_score,
+
         "Geography": geography,
+
         "Gender": gender,
+
         "Age": age,
+
         "Tenure": tenure,
+
         "Balance": balance,
+
         "NumOfProducts": num_of_products,
+
         "HasCrCard": has_cr_card_value,
+
         "IsActiveMember": is_active_member_value,
-        "EstimatedSalary": estimated_salary
+
+        "Exited" : is_exited
+
+
+
+
     }
 
-    input_data_df = pd.DataFrame([input_data])
+
+    input_data_df = pd.DataFrame(
+        [input_data]
+    )
 
 
     # =========================
@@ -115,12 +180,17 @@ if st.button("Predict Churn"):
         input_data_df[["Geography"]]
     )
 
+
     encoded_df = pd.DataFrame(
+
         encoder_geo,
+
         columns=One_hot_encoder_geo.get_feature_names_out(
             ["Geography"]
         ),
+
         index=input_data_df.index
+
     )
 
 
@@ -128,12 +198,17 @@ if st.button("Predict Churn"):
     # LABEL ENCODE GENDER
     # =========================
 
-    input_data_df["Gender"] = label_encoder_gender.transform(
-        input_data_df["Gender"]
+    input_data_df["Gender"] = (
+        label_encoder_gender.transform(
+            input_data_df["Gender"]
+        )
     )
 
 
-    # Remove original Geography
+    # =========================
+    # REMOVE ORIGINAL GEOGRAPHY
+    # =========================
+
     input_data_df = input_data_df.drop(
         columns=["Geography"]
     )
@@ -150,7 +225,7 @@ if st.button("Predict Churn"):
 
 
     # =========================
-    # MATCH SCALER COLUMN ORDER
+    # MATCH TRAINING COLUMNS
     # =========================
 
     input_data_df = input_data_df[
@@ -159,7 +234,7 @@ if st.button("Predict Churn"):
 
 
     # =========================
-    # SCALE DATA
+    # SCALE INPUT
     # =========================
 
     scaled_input = scaler.transform(
@@ -168,17 +243,17 @@ if st.button("Predict Churn"):
 
 
     # =========================
-    # PREDICT
+    # PREDICT SALARY
     # =========================
 
     prediction = model.predict(
         scaled_input,
-        
+        verbose=0
     )
 
-    probability = prediction[0][0]
 
-    percentage = probability * 100
+
+    predicted_salary = prediction[0][0]
 
 
     # =========================
@@ -187,15 +262,6 @@ if st.button("Predict Churn"):
 
     st.subheader("Prediction Result")
 
-    st.write(
-        f"Churn Probability: **{percentage:.2f}%**"
+    st.success(
+        f"💰 Estimated Salary: ₹{predicted_salary:,.2f}"
     )
-
-
-    if probability >= 0.5:
-
-        st.error("⚠️ Customer is likely to CHURN")
-
-    else:
-
-        st.success("✅ Customer is likely to STAY")
